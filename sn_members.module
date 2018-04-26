@@ -1,0 +1,407 @@
+<?php
+
+function sn_members_menu() {
+    $items = array();
+
+    $items['members'] = array(
+        'title' => 'Members',
+        'page callback' => 'sn_members_page',
+        'access callback' => true,
+    );
+
+    return $items;
+}
+
+function _sn_members_get_rank_sort_value($node) {
+    $rank = $node->field_rank['und'][0]['value'];
+
+    switch($rank) {
+        case 'Lieutenant':
+            return 1;
+        case 'Captain':
+            return 2;
+        case 'Major':
+            return 3;
+        case 'Lieutenant Colonel':
+            return 4;
+        case 'Colonel':
+            return 5;
+        case 'Brigadier General':
+            return 6;
+        case 'Major General':
+            return 7;
+        case 'Lieutenant General':
+            return 8;
+        case 'General';
+            return 9;
+        default:
+            return 1;
+    }
+}
+
+function _sn_members_get_ranks_string($node) {
+    $primary_rank = $node->field_rank['und'][0]['value'];
+    $ranks = array($primary_rank);
+
+    $additional_ranks_field = array();
+    if(!empty($node->field_additional_ranks['und'])) {
+        $additional_ranks_field = $node->field_additional_ranks['und'];
+    }
+
+    foreach($additional_ranks_field as $field) {
+        $ranks[] = $field['value'];
+    }
+
+    return implode(', ', $ranks);
+}
+
+function _sn_members_get_stars_from_number($star_num) {
+    if($star_num == 0) {
+        return array(
+          'silver' => 0,
+          'bronze' => 0
+        );
+    }
+
+    $silver = ($star_num - ($star_num % 5)) / 5;
+    $bronze = $star_num - ($silver * 5);
+
+    return array(
+        'silver' => $silver,
+        'bronze' => $bronze
+    );
+}
+
+function _sn_members_get_medal_array($entity_id) {
+    $entity = entity_load('field_collection_item', array($entity_id));
+
+    $is_awarded = false;
+    $stars_num = 0;
+    if(!empty($entity[$entity_id]->field_is_awarded['und'])) {
+        $is_awarded = (boolean) $entity[$entity_id]->field_is_awarded['und'][0]['value'];
+    }
+    if(!empty($entity[$entity_id]->field_medal_stars['und'])) {
+        $stars_num = (int) $entity[$entity_id]->field_medal_stars['und'][0]['value'];
+    }
+
+    return array(
+      'is_awarded' => $is_awarded,
+      'stars' => _sn_members_get_stars_from_number($stars_num)
+    );
+}
+
+function _sn_members_get_medal_types_array() {
+    return array(
+        'field_air_force_commendation_med',
+        'field_air_force_cross',
+        'field_air_force_good_conduct',
+        'field_air_force_recruiter_medal',
+        'field_air_medal',
+        'field_airmans_medal',
+        'field_bronze_star',
+        'field_combat_readiness_medal',
+        'field_distinguished_flying_cross',
+        'field_joint_service_achievement_',
+        'field_legion_of_merit_medal',
+        'field_meritorious_service_medal',
+        'field_purple_heart',
+        'field_silver_star'
+    );
+}
+
+function _sn_get_medals_metadata() {
+    $images_dir = drupal_get_path('module', 'sn_members') . '/img/';
+
+    $medal_types = _sn_members_get_medal_types_array();
+
+    $medals = array();
+
+    foreach($medal_types as $medal_type) {
+        $image = '';
+        $desc = '';
+        switch($medal_type) {
+            case 'field_air_force_commendation_med':
+                $image = $images_dir . 'af_commendation.jpg';
+                $desc = 'Air Force Commendation Medal';
+                continue;
+            case 'field_air_force_cross':
+                $image = $images_dir . 'af_cross.jpg';
+                $desc = 'Air Force Cross';
+                continue;
+            case 'field_air_force_good_conduct':
+                $image = $images_dir . 'af_good_conduct.jpg';
+                $desc = 'Air Force Good Conduct Medal';
+                continue;
+            case 'field_air_force_recruiter_medal':
+                $image = $images_dir . 'af_recruiter.jpg';
+                $desc = 'Air Force Recruiter Medal';
+                continue;
+            case 'field_air_medal':
+                $image = $images_dir . 'air_medal.jpg';
+                $desc = 'Air Medal';
+                continue;
+            case 'field_airmans_medal':
+                $image = $images_dir . 'airmans_medal.jpg';
+                $desc = 'Airman\'s Medal';
+                continue;
+            case 'field_bronze_star':
+                $image = $images_dir . 'bronze_star.jpg';
+                $desc = 'Bronze Star';
+                continue;
+            case 'field_combat_readiness_medal':
+                $image = $images_dir . 'combat_readiness.jpg';
+                $desc = 'Combat Readiness Medal';
+                continue;
+            case 'field_distinguished_flying_cross':
+                $image = $images_dir . 'distinguished_flying_cross.jpg';
+                $desc = 'Distinguished Flying Cross';
+                continue;
+            case 'field_joint_service_achievement_':
+                $image = $images_dir . 'joint_service_achievement.jpg';
+                $desc = 'Joint Service Achievement Medal';
+                continue;
+            case 'field_legion_of_merit_medal':
+                $image = $images_dir . 'legion_of_merit.jpg';
+                $desc = 'Legion of Merit Medal';
+                continue;
+            case 'field_meritorious_service_medal':
+                $image = $images_dir . 'meritorious_service.jpg';
+                $desc = 'Meritorious Service Medal';
+                continue;
+            case 'field_purple_heart':
+                $image = $images_dir . 'purple_heart.jpg';
+                $desc = 'Purple Heart';
+                continue;
+            case 'field_silver_star':
+                $image = $images_dir . 'silver_star.jpg';
+                $desc = 'Silver Star';
+                continue;
+        }
+
+        $medals[$medal_type] = array(
+            'image' => $image,
+            'desc' => $desc
+        );
+    }
+    $medals['longevity'] = array(
+        'image' => $images_dir . 'longevity.jpg',
+        'desc' => 'Longevity Medal',
+    );
+
+    $medals['one_month'] = array(
+        'image' => $images_dir . 'time_one_month.jpg',
+        'desc' => 'One Month',
+    );
+
+    $medals['one_year'] = array(
+        'image' => $images_dir . 'time_one_year.jpg',
+        'desc' => 'One Month',
+    );
+
+    $medals['multi_year'] = array(
+        'image' => $images_dir . 'time_multi_year.jpg',
+        'desc' => 'One Month',
+    );
+
+
+    $star_images = array(
+        'one_star' => $images_dir . 'one_star.png',
+        'five_star' => $images_dir . 'five_star.png',
+    );
+
+    $pilot_wings_image = $images_dir . 'pilot_wings_senior.png';
+
+    $rank_images_directory = $images_dir . '/ranks/';
+    $rank_images = array(
+        'lieutenant' => $rank_images_directory . 'lieutenant.png',
+        'captain' => $rank_images_directory . 'captain.png',
+        'major' => $rank_images_directory . 'major.png',
+        'lieutenant_colonel' => $rank_images_directory . 'lieutenant_colonel',
+        'colonel' => $rank_images_directory . 'colonel.png',
+        'brigadier_general' => $rank_images_directory . 'brigadier_general.png',
+        'major_general' => $rank_images_directory . 'major_general.png',
+        'lieutenant_general' => $rank_images_directory . 'lieutenant_general.png',
+        'general' => $rank_images_directory . 'general.png'
+    );
+
+    $images = array(
+        'medals' => $medals,
+        'time_images' => $time_images,
+        'star_images' => $star_images,
+        'pilot_wings_image' => $pilot_wings_image,
+        'rank_images' => $rank_images
+    );
+
+    return $images;
+}
+
+function _sn_members_get_raw_data() {
+    $data = array();
+    $nodes = node_load_multiple(array(), array('type' => 'squadron_member'));
+
+    foreach($nodes as $node) {
+        if($node->status != 1) continue;
+
+        $item = array();
+
+        // name of the member
+        $item['name'] = $node->title;
+
+        // ranks of the member
+        $item['primary_rank'] = str_replace(' ', '_', strtolower($node->field_rank['und'][0]['value']));
+        $item['ranks'] = _sn_members_get_ranks_string($node);
+
+        // the value to sort the array by
+        $item['sort_value'] = _sn_members_get_rank_sort_value($node);
+
+        // description
+        $item['description'] = $node->field_description['und'][0]['safe_value'];
+
+        // joined data and time served data
+        $joined = $node->field_joined['und'][0]['value'];
+        $joined_timestamp = strtotime($joined);
+        $item['joined_timestamp'] = $joined_timestamp;
+        $item['joined'] = date('F Y', $joined_timestamp);
+
+        $time_since_joined = time() - $joined_timestamp;
+
+        $years_text = '';
+        if($time_since_joined < (60 * 60 * 24 * 365)) {
+            $years_text = 'Less than one year of service';
+        } else {
+            $years = ($time_since_joined - ($time_since_joined % (60 * 60 * 24 * 365))) / (60 * 60 * 24 * 365);
+            if($years > 1) {
+                $years_text = "$years years of service";
+            } else {
+                $years_text = "$years year of service";
+            }
+        }
+        $item['years_of_service'] = $years_text;
+
+        // medals data
+        $medals_array = array();
+        $medal_types = _sn_members_get_medal_types_array();
+        foreach($medal_types as $medal_type) {
+            $entity_id = $node->{$medal_type}['und'][0]['value'];
+            $item['medals'][$medal_type] = _sn_members_get_medal_array($entity_id);
+        };
+
+        $has_longevity = false;
+        $longevity_stars_num = 0;
+        if($years && $years >= 4) {
+            $has_longevity = true;
+            $longevity_stars_num = (($years - ($years % 4)) / 4) - 1;
+        }
+        $item['medals']['longevity'] = array(
+            'is_awarded' => $has_longevity,
+            'stars' => _sn_members_get_stars_from_number($longevity_stars_num),
+        );
+
+        $has_one_month = $time_since_joined > (60 * 60 * 24 * 30);
+        $item['medals']['one_month'] = array(
+            'is_awarded' => $has_one_month,
+            'stars' => _sn_members_get_stars_from_number(0),
+        );
+
+        $has_one_year = $time_since_joined > (60 * 60 * 24 * 365);
+        $item['medals']['one_year'] = array(
+            'is_awarded' => $has_one_year,
+            'stars' => _sn_members_get_stars_from_number(0),
+        );
+
+        $has_multi_years = $time_since_joined > (60 * 60 * 24 * 365 * 2);
+        $years_stars_num = 0;
+        if($has_multi_years) {
+            $years_stars_num = $years - 2;
+        }
+        $item['medals']['multi_year'] = array(
+                'is_awarded' => $has_multi_years,
+                'stars' => _sn_members_get_stars_from_number($years_stars_num),
+        );
+
+
+        $item['first_row_offset'] = _sn_members_get_first_medal_row_offset($item);
+
+        $data[] = $item;
+    }
+    usort($data, '_sn_members_member_data_comparator');
+
+    return $data;
+}
+
+function _sn_members_get_first_medal_row_offset($member_data) {
+    $total_medals_count = 0;
+
+    if($member_data['has_one_month']) {
+        $total_medals_count++;
+    }
+
+    if($member_data['has_one_year']) {
+        $total_medals_count++;
+    }
+
+    if($member_data['has_multi_years']) {
+        $total_medals_count++;
+    }
+
+    if($member_data['has_longevity']) {
+        $total_medals_count++;
+    }
+
+    foreach($member_data['medals'] as $medal) {
+        if($medal['is_awarded']) {
+            $total_medals_count++;
+        }
+    }
+
+    return ($total_medals_count % 3);
+}
+
+function sn_members_page() {
+    $data = _sn_members_get_raw_data();
+
+    $variables = array(
+        'members' => $data,
+        'medals_metadata' => _sn_get_medals_metadata(),
+    );
+
+    return theme('sn_members_page', $variables);
+}
+
+/**
+ * Implements hook_theme
+ */
+function sn_members_theme($existing, $type, $theme, $path) {
+    $tpl_dir = drupal_get_path('module', 'sn_members') . '/tpl';
+
+    return array (
+        'sn_members_page' => array(
+            'variables' => array(
+                'members' => NULL,
+                'medals_metadata' => NULL,
+            ),
+            'template' => 'sn_members_page',
+            'path' => $tpl_dir,
+        ),
+    );
+}
+
+function _sn_members_member_data_comparator($a, $b) {
+    if($a['sort_value'] > $b['sort_value']) {
+        return -1;
+    }
+
+    if($a['sort_value'] < $b['sort_value']) {
+        return 1;
+    }
+
+    if($a['joined_timestamp'] > $b['joined_timestamp']) {
+        return 1;
+    }
+
+    if($a['joined_timestamp'] < $b['joined_timestamp']) {
+        return -1;
+    }
+
+    return 1;
+}

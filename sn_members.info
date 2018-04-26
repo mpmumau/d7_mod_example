@@ -1,0 +1,7 @@
+name = Fighting 69th Members
+description = A module which outputs the Members page.
+core = 7.x
+package = Fighting 69th
+
+version = "7.x-1.0-1"
+core = "7.x"
